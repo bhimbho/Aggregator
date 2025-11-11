@@ -13,18 +13,22 @@ return new class extends Migration
     {
         Schema::create('articles', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('type');
-            $table->string('source')->nullable();
+            $table->string('type')->index();
+            $table->string('source')->nullable()->index();
             $table->longText('author')->nullable();
             $table->mediumText('title');
             $table->mediumText('description')->nullable();
             $table->mediumText('url');
             $table->mediumText('urlToImage')->nullable();
             $table->longText('content')->nullable();
-            $table->string('category')->nullable();
-            $table->dateTime('publishedAt');
-            $table->string('platform');
+            $table->string('category')->nullable()->index();
+            $table->dateTime('publishedAt')->index();
+            $table->string('platform')->index();
             $table->timestamps();
+
+            $table->index(['platform', 'category', 'publishedAt'], 'idx_platform_category_published');
+            $table->index(['source', 'publishedAt'], 'idx_source_published');
+            $table->fullText(['title', 'description', 'content'], 'idx_fulltext_search');
         });
     }
 
