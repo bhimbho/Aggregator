@@ -33,11 +33,7 @@ class ArticleQueryFactory
     private function applySearchFilter(?string $search): self
     {
         if ($search) {
-            $this->query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('content', 'like', "%{$search}%");
-            });
+            $this->query->whereFullText(['title', 'description', 'content'], $search);
         }
         return $this;
     }
