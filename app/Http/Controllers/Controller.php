@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Traits\ApiResponseTrait;
+use App\Http\Traits\ApiResponseTrait;
 
 abstract class Controller
 {
