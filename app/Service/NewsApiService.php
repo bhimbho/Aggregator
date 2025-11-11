@@ -13,9 +13,11 @@ use Illuminate\Support\Facades\Http;
 
 class NewsApiService implements NewsService 
 {
+    public function __construct(private LatestNewsArticle $latestNewsArticle)
+    {}
     public function getNews(string $keyword): void
     {
-        $lastArticle = app(LatestNewsArticle::class)->execute(PlatformEnum::NEWSAPI);
+        $lastArticle = $this->latestNewsArticle->execute(PlatformEnum::NEWSAPI);
         $response = $this->fetchFromApi($keyword, $lastArticle?->publishedAt);
 
         if ($response->successful()) {
@@ -31,7 +33,7 @@ class NewsApiService implements NewsService
     {
         $parameters = [
             'q' => $keyword,
-            'apiKey' => env('NEWS_API_KEY'),
+            'apiKey' => config('services.news_api.key'),
         ];
         if ($lastDate) {
             $parameters['from'] = Carbon::parse($lastDate)->addMinutes(2)->toIso8601String();

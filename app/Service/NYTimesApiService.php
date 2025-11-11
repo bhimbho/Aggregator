@@ -11,11 +11,14 @@ use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
-class NYTimesApiService implements NewsService 
+class NYTimesApiService implements NewsService
 {
+
+    public function __construct(private LatestNewsArticle $latestNewsArticle)
+    {}
     public function getNews(string $keyword): void
     {
-        $lastArticle = app(LatestNewsArticle::class)->execute(PlatformEnum::NYT);
+        $lastArticle = $this->latestNewsArticle->execute(PlatformEnum::NYT);
         $response = $this->fetchFromApi($keyword, $lastArticle?->publishedAt);
 
         if ($response->successful()) {
@@ -28,10 +31,11 @@ class NYTimesApiService implements NewsService
     public function fetchFromApi(string $keyword, string|null $lastDate): Response
     {
         $parameters = [
-            'api-key' => env('NEW_YORK_TIMES_KEY'),
+            'api-key' => config('services.nytimes.api_key'),
             'q' => $keyword,
             'sort' => 'oldest',
         ];
+        
         if ($lastDate) {
             $parameters['begin_date'] = Carbon::parse($lastDate)->format('Ymd');
         }
@@ -39,7 +43,7 @@ class NYTimesApiService implements NewsService
         return Http::get('https://api.nytimes.com/svc/search/v2/articlesearch.json', $parameters);
     }
 
-    public function transform(Response $response): array 
+    public function transform(Response $response): array
     {
         return collect($response->json()['response']['docs'])
         ->map(fn ($article) => [
@@ -52,7 +56,7 @@ class NYTimesApiService implements NewsService
             'url' => $article['web_url'],
             'urlToImage' => $article['multimedia'][0]['url'] ?? null,
             'publishedAt' => Carbon::parse($article['pub_date'])->format('Y-m-d H:i:s'),
-            'content' => $article['lead_paragraph'],
+            'content' => $article['headline']["main"],
             'category' => $article['section_name'] ?? null,
         ])->toArray();
     }

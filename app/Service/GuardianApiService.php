@@ -2,7 +2,6 @@
 namespace App\Service;
 
 use App\Action\LatestNewsArticle;
-use App\Action\ProcessArticle;
 use App\Enum\PlatformEnum;
 use App\Jobs\ProcessNewsArticlesJob;
 use App\Service\Interface\NewsService;
@@ -10,21 +9,20 @@ use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
-class GuardianApiService implements NewsService 
+class GuardianApiService implements NewsService
 {
 
     private const PAGE_SIZE = 50;
 
-    public function __construct(private ProcessArticle $articleProcessor)
-    {
-    }
+    public function __construct(private LatestNewsArticle $latestNewsArticle)
+    {}
 
     public function getNews(string $keyword): void
     {
         $currentPage = 1;
         $totalPages = 1;
-        $oldestArticle = app(LatestNewsArticle::class)->execute(PlatformEnum::GUARDIAN);
-        
+        $oldestArticle = $this->latestNewsArticle->execute(PlatformEnum::GUARDIAN);
+
         try {
             do {
                 $response = $this->fetchFromApi($keyword, $currentPage, $oldestArticle?->publishedAt);
@@ -33,9 +31,9 @@ class GuardianApiService implements NewsService
                     $totalPages = $responseData['pages'];
 
                     print "-- Processing Guardian API page {$currentPage} of {$totalPages} --\n";
-                    
+
                     $articles = $this->transform($response);
-                    ProcessNewsArticlesJob::dispatch($articles);                    
+                    ProcessNewsArticlesJob::dispatch($articles);
                     $currentPage++;
                 }
             } while ($currentPage <= $totalPages);
@@ -48,7 +46,7 @@ class GuardianApiService implements NewsService
     private function fetchFromApi(string $keyword, int $page, string|null $oldestDate): Response
     {
         $parameters = [
-            'api-key' => env('GUARDIAN_API_KEY'),
+            'api-key' => config('services.guardian.api_key'),
             'format' => 'json',
             'q' => $keyword,
             'page' => $page,
@@ -61,7 +59,7 @@ class GuardianApiService implements NewsService
         return Http::get('https://content.guardianapis.com/search', $parameters);
     }
 
-    public function transform(Response $response): array 
+    public function transform(Response $response): array
     {
         return collect($response->json()['response']['results'])
         ->map(fn ($article) => [
