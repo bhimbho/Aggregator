@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Traits\ApiResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class ArticleRequest extends FormRequest
 {
+    use ApiResponseTrait;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -21,7 +26,7 @@ class ArticleRequest extends FormRequest
      */
     public function rules(): array
     {
-        return 
+        return
             [
                 'search' => 'nullable|string|min:2',
                 'source' => 'nullable|string',
@@ -42,5 +47,15 @@ class ArticleRequest extends FormRequest
             'source.in' => 'The source must be one of the following: news api, guardian, new york times.',
             'to_date.after_or_equal' => 'The to date must be after or equal to the from date.'
         ];
+    }
+
+    /**
+     * Handle a failed validation attempt.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(
+            $this->validationError($validator->errors()->toArray())
+        );
     }
 }
