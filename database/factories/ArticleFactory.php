@@ -28,7 +28,7 @@ class ArticleFactory extends Factory
             'content' => $this->faker->paragraph,
             'category' => $this->faker->word,
             'publishedAt' => $this->faker->dateTime,
-            'platform' => $this->faker->randomElement(PlatformEnum::cases()),
+            'platform' => $this->faker->randomElement(array_column(PlatformEnum::cases(), 'value')),
         ];
     }
 }

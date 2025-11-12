@@ -23,4 +23,8 @@ class Article extends Model
         'category',
         'platform',
     ];
+
+    protected $casts = [
+        'publishedAt' => 'datetime',
+    ];
 }

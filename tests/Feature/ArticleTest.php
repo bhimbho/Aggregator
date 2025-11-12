@@ -5,126 +5,90 @@ namespace Tests\Feature;
 use App\Enum\PlatformEnum;
 use App\Models\Article;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
-use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
-class ProcessArticleTest extends TestCase
+class ArticleTest extends TestCase
 {
     use RefreshDatabase;
+
     /**
-     * A basic feature test example.
+     * Test the complete API integration with all filters and sorting.
+     * Individual filter logic is tested in ArticleQueryFactoryTest (unit tests).
      */
-    public function test_api_returns_correct_data_without_query_params(): void
+    public function test_api_endpoint_returns_paginated_articles_with_filters(): void
     {
-        $this->createNewsApiArticles(5, [
-            'platform' => PlatformEnum::NEWSAPI->value,
-        ]);
-
-        $this->createGuardianApiArticles(5, [
-            'platform' => PlatformEnum::NEWSAPI->value,
-        ]);
-        
-        $response = $this->get('/api/articles');
-
-        $response->assertStatus(200);
-        $response->assertSuccessful();
-        $response->assertJsonCount(10, 'data');
-        $response->assertJsonStructure([
-            'data' => [
-                '*' => [
-                    'id',
-                    'type',
-                    'source',
-                    'author',
-                    'title',
-                    'description',
-                    'url',
-                    'urlToImage',
-                    'content',
-                    'publishedAt',
-                    'category',
-                    'platform',
-                    'created_at',
-                    'updated_at',
-                ],
-            ],
-        ]);
-    }
-
-    public function test_api_filters_correctly_by_category(): void
-    {
-        $this->createNewsApiArticles(5, [
+        Article::factory()->create([
+            'platform' => PlatformEnum::GUARDIAN->value,
             'category' => 'technology',
+            'source' => 'BBC',
+            'publishedAt' => '2024-01-15 10:00:00',
         ]);
-        $this->createGuardianApiArticles(5, [
+        Article::factory()->create([
+            'platform' => PlatformEnum::NEWSAPI->value,
             'category' => 'business',
+            'source' => 'CNN',
+            'publishedAt' => '2024-01-20 10:00:00',
         ]);
 
-        $response = $this->get('/api/articles?category=technology');
-        $response->assertStatus(200);
-        $response->assertJsonCount(5, 'data');
+        $response = $this->getJson('/api/articles?platform=guardian&category=technology&from_date=2024-01-14&to_date=2024-01-16&sort_by=publishedAt&sort_direction=asc&per_page=10');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'type',
+                        'source',
+                        'author',
+                        'title',
+                        'description',
+                        'url',
+                        'urlToImage',
+                        'content',
+                        'publishedAt',
+                        'category',
+                        'platform',
+                        'created_at',
+                        'updated_at',
+                    ],
+                ],
+                'meta' => [
+                    'current_page',
+                    'last_page',
+                    'per_page',
+                    'total',
+                    'from',
+                    'to',
+                ],
+            ])
+            ->assertJson([
+                'success' => true,
+                'meta' => [
+                    'per_page' => 10,
+                    'total' => 1,
+                ],
+            ]);
+
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals(PlatformEnum::GUARDIAN->value, $data[0]['platform']);
+        $this->assertEquals('technology', $data[0]['category']);
     }
 
-    public function test_api_filters_correctly_by_source(): void
+    public function test_api_endpoint_handles_validation_errors(): void
     {
-        $this->createNewsApiArticles(5, [
-            'source' => 'Jb Town',
-        ]);
-        $this->createGuardianApiArticles(5, [
-            'source' => 'The Guardian',
-        ]);
+        $response = $this->getJson('/api/articles?search=a&per_page=100&to_date=2024-01-01&from_date=2024-01-31');
 
-        $response = $this->get('/api/articles?source=The%20Guardian');    
-        $response->assertJsonCount(5, 'data');
-    }
-
-    public function test_api_filters_correctly_by_platform(): void
-    {
-        $this->createNewsApiArticles(5, [
-            'platform' => 'guardian',
-        ]);
-        $this->createGuardianApiArticles(5, [
-            'platform' => 'new york times',
-        ]);
-
-        $response = $this->get('/api/articles?platform=guardian');
-        $response->assertJsonCount(5, 'data');
-    }
-
-    public function test_api_filters_correctly_by_search(): void
-    {
-        $this->createNewsApiArticles(5, [
-            'title' => 'The quick brown fox',
-        ]);
-        $this->createGuardianApiArticles(5, [
-            'title' => 'The quick brown fox',
-        ]);
-
-        $response = $this->get('/api/articles?search=quick');
-        $response->assertJsonCount(10, 'data');
-    }
-
-    public function test_api_filters_correctly_by_date_range(): void
-    {
-        $this->createNewsApiArticles(5, [
-            'publishedAt' => '2022-02-01 12:00:00',
-        ]);
-        $this->createGuardianApiArticles(5, [
-            'publishedAt' => '2022-02-01 12:00:00',
-        ]);
-
-        $response = $this->get('/api/articles?from_date=2022-02-01&to_date=2022-02-01');
-        $response->assertJsonCount(10, 'data');
-    }
-
-    private function createNewsApiArticles(int $count, ?array $data = null): void
-    {
-        Article::factory()->count($count)->create($data);
-    }
-
-    private function createGuardianApiArticles(int $count, ?array $data = null): void
-    {
-        Article::factory()->count($count)->create($data);
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors',
+            ])
+            ->assertJson([
+                'success' => false,
+            ]);
     }
 }
