@@ -74,7 +74,7 @@ class ArticleControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'meta' => [
-                    'per_page' => 15, // Default per_page
+                    'per_page' => 15,
                 ],
             ]);
     }

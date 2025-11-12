@@ -11,10 +11,6 @@ class ArticleTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Test the complete API integration with all filters and sorting.
-     * Individual filter logic is tested in ArticleQueryFactoryTest (unit tests).
-     */
     public function test_api_endpoint_returns_paginated_articles_with_filters(): void
     {
         Article::factory()->create([
